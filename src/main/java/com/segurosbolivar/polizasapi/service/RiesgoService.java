@@ -1,6 +1,7 @@
 package com.segurosbolivar.polizasapi.service;
 
 import com.segurosbolivar.polizasapi.domain.EstadoPoliza;
+import com.segurosbolivar.polizasapi.domain.EstadoRiesgo;
 import com.segurosbolivar.polizasapi.domain.Poliza;
 import com.segurosbolivar.polizasapi.domain.Riesgo;
 import com.segurosbolivar.polizasapi.domain.TipoPoliza;
@@ -42,6 +43,18 @@ public class RiesgoService {
                 .poliza(poliza)
                 .build();
 
+        return riesgoRepository.save(riesgo);
+    }
+
+    public Riesgo cancelar(Long riesgoId) {
+        Riesgo riesgo = riesgoRepository.findById(riesgoId)
+                .orElseThrow(() -> new NoSuchElementException("Riesgo no encontrado: " + riesgoId));
+
+        if (riesgo.getEstado() == EstadoRiesgo.CANCELADO) {
+            throw new BusinessException("El riesgo ya esta cancelado");
+        }
+
+        riesgo.setEstado(EstadoRiesgo.CANCELADO);
         return riesgoRepository.save(riesgo);
     }
 
