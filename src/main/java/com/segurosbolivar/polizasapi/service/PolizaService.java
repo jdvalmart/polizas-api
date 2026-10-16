@@ -1,13 +1,16 @@
 package com.segurosbolivar.polizasapi.service;
 
 import com.segurosbolivar.polizasapi.domain.EstadoPoliza;
+import com.segurosbolivar.polizasapi.domain.EstadoRiesgo;
 import com.segurosbolivar.polizasapi.domain.Poliza;
+import com.segurosbolivar.polizasapi.domain.Riesgo;
 import com.segurosbolivar.polizasapi.domain.TipoPoliza;
 import com.segurosbolivar.polizasapi.exception.BusinessException;
 import com.segurosbolivar.polizasapi.repository.PolizaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -50,6 +53,22 @@ public class PolizaService {
         LocalDate nuevaInicio = poliza.getFechaFin().plusDays(1);
         poliza.setFechaInicio(nuevaInicio);
         poliza.setFechaFin(nuevaInicio.plusMonths(poliza.getMesesVigencia()));
+
+        return polizaRepository.save(poliza);
+    }
+
+    @Transactional
+    public Poliza cancelar(Long id) {
+        Poliza poliza = obtenerPoliza(id);
+
+        if (poliza.getEstado() == EstadoPoliza.CANCELADA) {
+            throw new BusinessException("La poliza ya esta cancelada");
+        }
+
+        poliza.setEstado(EstadoPoliza.CANCELADA);
+        for (Riesgo riesgo : poliza.getRiesgos()) {
+            riesgo.setEstado(EstadoRiesgo.CANCELADO);
+        }
 
         return polizaRepository.save(poliza);
     }
