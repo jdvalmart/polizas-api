@@ -21,6 +21,7 @@ public class RiesgoService {
 
     private final RiesgoRepository riesgoRepository;
     private final PolizaRepository polizaRepository;
+    private final CoreIntegrationService coreIntegrationService;
 
     public List<Riesgo> listarPorPoliza(Long polizaId) {
         obtenerPoliza(polizaId);
@@ -46,6 +47,7 @@ public class RiesgoService {
         return riesgoRepository.save(riesgo);
     }
 
+    @Transactional
     public Riesgo cancelar(Long riesgoId) {
         Riesgo riesgo = riesgoRepository.findById(riesgoId)
                 .orElseThrow(() -> new NoSuchElementException("Riesgo no encontrado: " + riesgoId));
@@ -55,7 +57,9 @@ public class RiesgoService {
         }
 
         riesgo.setEstado(EstadoRiesgo.CANCELADO);
-        return riesgoRepository.save(riesgo);
+        Riesgo cancelado = riesgoRepository.save(riesgo);
+        coreIntegrationService.notificar("ACTUALIZACION", cancelado.getPoliza().getId());
+        return cancelado;
     }
 
     private Poliza obtenerPoliza(Long polizaId) {

@@ -23,6 +23,7 @@ import java.util.NoSuchElementException;
 public class PolizaService {
 
     private final PolizaRepository polizaRepository;
+    private final CoreIntegrationService coreIntegrationService;
 
     @Value("${app.ipc}")
     private BigDecimal ipc;
@@ -54,7 +55,9 @@ public class PolizaService {
         poliza.setFechaInicio(nuevaInicio);
         poliza.setFechaFin(nuevaInicio.plusMonths(poliza.getMesesVigencia()));
 
-        return polizaRepository.save(poliza);
+        Poliza renovada = polizaRepository.save(poliza);
+        coreIntegrationService.notificar("ACTUALIZACION", renovada.getId());
+        return renovada;
     }
 
     @Transactional
@@ -70,7 +73,9 @@ public class PolizaService {
             riesgo.setEstado(EstadoRiesgo.CANCELADO);
         }
 
-        return polizaRepository.save(poliza);
+        Poliza cancelada = polizaRepository.save(poliza);
+        coreIntegrationService.notificar("ACTUALIZACION", cancelada.getId());
+        return cancelada;
     }
 
     private Poliza obtenerPoliza(Long id) {
