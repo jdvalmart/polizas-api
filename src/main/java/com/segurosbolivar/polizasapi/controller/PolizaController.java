@@ -3,15 +3,20 @@ package com.segurosbolivar.polizasapi.controller;
 import com.segurosbolivar.polizasapi.domain.EstadoPoliza;
 import com.segurosbolivar.polizasapi.domain.TipoPoliza;
 import com.segurosbolivar.polizasapi.dto.PolizaResponse;
+import com.segurosbolivar.polizasapi.dto.RiesgoRequest;
 import com.segurosbolivar.polizasapi.dto.RiesgoResponse;
 import com.segurosbolivar.polizasapi.service.PolizaService;
 import com.segurosbolivar.polizasapi.service.RiesgoService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -38,6 +43,12 @@ public class PolizaController {
         return riesgoService.listarPorPoliza(id).stream()
                 .map(RiesgoResponse::from)
                 .toList();
+    }
+
+    @PostMapping("/{id}/riesgos")
+    @ResponseStatus(HttpStatus.CREATED)
+    public RiesgoResponse agregarRiesgo(@PathVariable Long id, @Valid @RequestBody RiesgoRequest request) {
+        return RiesgoResponse.from(riesgoService.agregar(id, request.descripcion()));
     }
 
     @PostMapping("/{id}/renovar")
