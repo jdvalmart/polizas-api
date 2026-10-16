@@ -1,15 +1,21 @@
-# 🛡️ polizas-api
+<div align="center">
 
-> API REST para la gestión de pólizas de arrendamiento (individuales y colectivas).
+<h1>🛡️ polizas-api</h1>
 
-![CI](https://github.com/jdvalmart/polizas-api/actions/workflows/ci.yml/badge.svg)
-![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.8-6DB33F?logo=springboot&logoColor=white)
-![Maven](https://img.shields.io/badge/Build-Maven-C71A36?logo=apachemaven&logoColor=white)
-![H2](https://img.shields.io/badge/DB-H2%20in--memory-1341a3)
+<p><strong>API REST para la gestión de pólizas de arrendamiento (individuales y colectivas).</strong></p>
 
-Solución al **Módulo 2 – Prueba Técnica Práctica** del proceso de selección de
-Desarrollador TI en Seguros Bolívar. 🚀
+<p>
+  <img alt="CI" src="https://github.com/jdvalmart/polizas-api/actions/workflows/ci.yml/badge.svg">
+  <img alt="Java" src="https://img.shields.io/badge/Java-21-orange?logo=openjdk">
+  <img alt="Spring Boot" src="https://img.shields.io/badge/Spring%20Boot-4.0.8-6DB33F?logo=springboot&logoColor=white">
+  <img alt="Maven" src="https://img.shields.io/badge/Build-Maven-C71A36?logo=apachemaven&logoColor=white">
+  <img alt="H2" src="https://img.shields.io/badge/DB-H2%20in--memory-1341a3">
+</p>
+
+<p>🚀 Solución al <strong>Módulo 2 – Prueba Técnica Práctica</strong> del proceso de selección<br>
+de Desarrollador TI en Seguros Bolívar.</p>
+
+</div>
 
 ---
 
@@ -63,125 +69,42 @@ Si falta o es inválida, la API responde **`401`** con el formato de error está
 
 ## 🧭 Arquitectura
 
-Arquitectura en capas: **controller → service → repository**, con el dominio
-aislado y la integración con el CORE encapsulada.
+El proyecto sigue una **arquitectura en capas**: cada petición atraviesa
+`controller → service → repository`, y cada capa tiene una única
+responsabilidad. El dominio queda aislado de la infraestructura y toda la
+comunicación con el CORE se concentra en un único servicio.
 
-```mermaid
-flowchart TB
-    Cliente([🧑‍💻 Cliente / Front])
+### 🧱 Capas y responsabilidades
 
-    subgraph API["polizas-api · Spring Boot"]
-        direction TB
-        INT["🔐 ApiKeyInterceptor<br/><i>valida x-api-key</i>"]
+| Capa | Paquete | Responsabilidad |
+|:---|:---|:---|
+| 🔐 Entrada | `config` | `ApiKeyInterceptor` valida `x-api-key`, `WebConfig` lo registra y `DataSeeder` carga datos de ejemplo |
+| 🎛️ HTTP | `controller` | Recibe las peticiones y devuelve JSON: `PolizaController`, `RiesgoController`, `CoreMockController` |
+| 🧠 Negocio | `service` | Reglas de negocio en `PolizaService` y `RiesgoService`, e integración con el CORE en `CoreIntegrationService` |
+| 📚 Datos | `repository` | Acceso a datos con Spring Data JPA: `PolizaRepository`, `RiesgoRepository` |
+| 🏛️ Modelo | `domain` | Entidades `Poliza` y `Riesgo` y los enums de tipo y estado |
+| 📦 Contratos | `dto` | Objetos de entrada/salida (`PolizaResponse`, `RiesgoRequest/Response`, `CoreEventoRequest`) desacoplados de las entidades |
+| 🚨 Errores | `exception` | `GlobalExceptionHandler` traduce las excepciones a respuestas HTTP 409, 404 y 400 |
 
-        subgraph CTRL["🎛️ Controller · capa HTTP"]
-            PC[PolizaController]
-            RC[RiesgoController]
-            MC[CoreMockController]
-        end
+### 🔄 Flujo de una petición (renovar)
 
-        GEH["🚨 GlobalExceptionHandler<br/><i>@RestControllerAdvice</i>"]
-
-        subgraph SVC["🧠 Service · reglas de negocio"]
-            PS[PolizaService]
-            RS[RiesgoService]
-            CIS[CoreIntegrationService]
-        end
-
-        subgraph REPO["📚 Repository · acceso a datos"]
-            PR[PolizaRepository]
-            RR[RiesgoRepository]
-        end
-
-        subgraph DOM["🏛️ Domain · modelo"]
-            P[Poliza]
-            R[Riesgo]
-        end
-    end
-
-    DB[(💾 H2 en memoria)]
-    CORE[["🏦 CORE legado<br/>/core-mock/evento"]]
-
-    Cliente --> INT --> CTRL
-    PC --> PS
-    RC --> RS
-    PC --> RS
-    PS --> PR
-    RS --> PR
-    RS --> RR
-    PR --> P
-    RR --> R
-    PR --> DB
-    RR --> DB
-    PS -. notificar() .-> CIS
-    RS -. notificar() .-> CIS
-    CIS -- "POST HTTP + x-api-key" --> MC
-    MC -. solo loguea .-> CORE
-    CTRL -. excepciones .-> GEH
-
-    style API fill:#f0f7ff,stroke:#4a90d9
-    style SVC fill:#fff8e1,stroke:#e0a800
-    style DB fill:#e8f5e9,stroke:#43a047
-    style CORE fill:#fce4ec,stroke:#d81b60
-```
-
-### 🔄 Flujo de una renovación
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant C as 🧑‍💻 Cliente
-    participant I as 🔐 ApiKeyInterceptor
-    participant PC as PolizaController
-    participant PS as PolizaService
-    participant DB as 💾 H2
-    participant CIS as CoreIntegrationService
-    participant MC as CoreMockController
-
-    C->>I: POST /polizas/1/renovar (x-api-key)
-    alt header inválido
-        I-->>C: 401 Unauthorized
-    else header válido
-        I->>PC: pasa la petición
-        PC->>PS: renovar(1)
-        PS->>DB: findById(1)
-        alt póliza CANCELADA
-            PS-->>PC: BusinessException
-            PC-->>C: 409 Conflict
-        else póliza activa
-            PS->>PS: canon ×= (1 + IPC)<br/>prima = canon × meses<br/>estado = RENOVADA
-            PS->>DB: save(poliza)
-            PS->>CIS: notificar("ACTUALIZACION", 1)
-            CIS->>MC: POST /core-mock/evento
-            MC->>MC: 📝 log del intento
-            PS-->>PC: póliza renovada
-            PC-->>C: 200 OK + JSON
-        end
-    end
-```
+1. 📨 El cliente envía `POST /polizas/1/renovar` con la cabecera `x-api-key`.
+2. 🔐 El `ApiKeyInterceptor` valida la clave; si falta o es inválida responde `401`.
+3. 🎛️ El `PolizaController` delega en `PolizaService.renovar(1)`.
+4. 🧠 El service busca la póliza; si está `CANCELADA` lanza `BusinessException` → `409`.
+5. 💰 Si está activa, incrementa el canon por el IPC, recalcula la prima, pasa el estado a `RENOVADA` y ajusta la vigencia.
+6. 💾 Persiste los cambios con `PolizaRepository` sobre H2.
+7. 📡 Notifica al CORE con `CoreIntegrationService`, que hace `POST /core-mock/evento`; el mock registra el evento en el log.
+8. ✅ Devuelve `200 OK` con la póliza renovada en formato JSON.
 
 ### 🗃️ Modelo de datos
 
-```mermaid
-erDiagram
-    POLIZA ||--o{ RIESGO : "tiene (1:N)"
-    POLIZA {
-        Long id PK
-        TipoPoliza tipo "INDIVIDUAL | COLECTIVA"
-        EstadoPoliza estado "ACTIVA | CANCELADA | RENOVADA"
-        LocalDate fechaInicio
-        LocalDate fechaFin
-        Integer mesesVigencia
-        BigDecimal canonMensual
-        BigDecimal prima
-    }
-    RIESGO {
-        Long id PK
-        Long poliza_id FK
-        String descripcion
-        EstadoRiesgo estado "ACTIVO | CANCELADO"
-    }
-```
+| Entidad | Campos | Relación |
+|:---|:---|:---|
+| 🗂️ **Poliza** | `id`, `tipo` (`INDIVIDUAL`/`COLECTIVA`), `estado` (`ACTIVA`/`CANCELADA`/`RENOVADA`), `fechaInicio`, `fechaFin`, `mesesVigencia`, `canonMensual`, `prima` | Una póliza tiene **muchos** riesgos |
+| ⚠️ **Riesgo** | `id`, `poliza_id` (FK), `descripcion`, `estado` (`ACTIVO`/`CANCELADO`) | Cada riesgo pertenece a **una** póliza |
+
+La prima se calcula como `canonMensual × mesesVigencia`.
 
 ---
 
