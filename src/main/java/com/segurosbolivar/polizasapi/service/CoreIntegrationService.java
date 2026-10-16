@@ -11,9 +11,13 @@ import org.springframework.web.client.RestClient;
 public class CoreIntegrationService {
 
     private final RestClient restClient;
+    private final String apiKey;
 
-    public CoreIntegrationService(@Value("${app.core.url}") String coreUrl) {
+    public CoreIntegrationService(
+            @Value("${app.core.url}") String coreUrl,
+            @Value("${app.api-key}") String apiKey) {
         this.restClient = RestClient.builder().baseUrl(coreUrl).build();
+        this.apiKey = apiKey;
     }
 
     public void notificar(String evento, Long polizaId) {
@@ -21,6 +25,7 @@ public class CoreIntegrationService {
         log.info("Enviando evento al CORE: {}", request);
         try {
             restClient.post()
+                    .header("x-api-key", apiKey)
                     .body(request)
                     .retrieve()
                     .toBodilessEntity();
